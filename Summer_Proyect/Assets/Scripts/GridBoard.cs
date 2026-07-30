@@ -1,6 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-public class Grid : MonoBehaviour
+public class GridBoard : MonoBehaviour
 {
     [SerializeField] Transform player;
     //Layer para los nodos en los que no se puede mover el jugador
@@ -17,7 +18,19 @@ public class Grid : MonoBehaviour
     float nodeDiameter;
     //Tamanos de la grid en los ejes X e Y
     int gridSizeX, gridSizeY;
-    private void Start()
+
+    public List<Node> path;
+
+    [SerializeField] bool onlyDrawPathGizmos;
+
+    public int MaxSize
+    {
+        get 
+        {
+            return gridSizeX * gridSizeY;
+        }
+    }
+    private void Awake()
     {
         //Calculamos el diametro del nodo
         nodeDiameter = nodeRadius * 2;
@@ -30,7 +43,7 @@ public class Grid : MonoBehaviour
     void CreateGrid()
     {
         //Creamos la grid con el tamano en X e Y
-        grid = new Node[gridSizeX * gridSizeY];
+        grid = new Node[MaxSize];
         //Conversion del vector 3D del centro de la grid a un vector 2D
         Vector2 gridCenterPosition = transform.position;
         //Conseguimos la esquina izquierda del mundo
@@ -49,7 +62,7 @@ public class Grid : MonoBehaviour
                     state = NodeState.Blocked;
                 }
                 //Se crea un nodo en la posicion indicada
-                grid[gridSizeX * j + i] = new Node(state, worldPoint);
+                grid[gridSizeX * j + i] = new Node(state, worldPoint, i, j);
             }
         }
     }
@@ -61,7 +74,7 @@ public class Grid : MonoBehaviour
         //Se usa para evitar que nos de un indice invalido si el jugador se encuentra fuera de la grid por alguna razon
         percentX = Mathf.Clamp01(percentX);
         percentY = Mathf.Clamp01(percentY);
-        
+
         //Conseguimos las coordenadas x e y del nodo
         //El -1 es importante para evitar problemas de que nos de indice fuera del array al ser valores entre 0 y 1
         int x = Mathf.RoundToInt((gridSizeX - 1) * percentX);
@@ -69,33 +82,69 @@ public class Grid : MonoBehaviour
         //Devolvemos el nodo resultante
         return grid[gridSizeX * y + x];
     }
+    public List<Node> GetNeighbours(Node node)
+    {
+        List<Node> neighboursList = new List<Node>();
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 1; y++)
+            {
+                if (x == 0 && y == 0)
+                {
+                    continue;
+                }
+                int checkX = node.GetGridX() + x;
+                int checkY = node.GetGridY() + y;
+
+                if (checkX >= 0 && checkX < gridSizeX && checkY >= 0 && checkY < gridSizeY)
+                {
+                    neighboursList.Add(grid[gridSizeX * checkY + checkX]);
+                }
+            }
+        }
+        return neighboursList;
+    }
     private void OnDrawGizmos()
     {
         //Coloreamos en rojo el tamano de la grid
         Gizmos.color = Color.red;
         Gizmos.DrawWireCube(transform.position, new Vector2(gridWorldSize.x, gridWorldSize.y));
-        if (grid != null)
+
+        if (onlyDrawPathGizmos)
         {
-            //Obtenemos el nodo en el que se obtiene al jugador
-            Node playerNode = NodeFromWorldPoint(player.position);
-            foreach (Node node in grid)
+            if (path != null)
             {
-                //Comprobamos el estado del nodo y lo coloreamos segun su estado
-                if (node.currentNodeState == NodeState.Blocked)
+                foreach (Node node in path)
                 {
-                    Gizmos.color = Color.blue;
+                    Gizmos.color = Color.brown;
+                    Gizmos.DrawWireCube(node.worldPosition, Vector3.one * (nodeDiameter - 0.1f));
                 }
-                else
+            }
+        }
+        else
+        {
+            if (grid != null)
+            {
+                foreach (Node node in grid)
                 {
-                    Gizmos.color = Color.green;
+                    //Comprobamos el estado del nodo y lo coloreamos segun su estado
+                    if (node.currentNodeState == NodeState.Blocked)
+                    {
+                        Gizmos.color = Color.blue;
+                    }
+                    else
+                    {
+                        Gizmos.color = Color.green;
+                    }
+                    if (path != null)
+                    {
+                        if (path.Contains(node))
+                        {
+                            Gizmos.color = Color.brown;
+                        }
+                    }
+                    Gizmos.DrawWireCube(node.worldPosition, Vector3.one * (nodeDiameter - 0.1f));
                 }
-                //Si el nodo actual es el nodo en el que se encuentra el jugador se coloreara distinto
-                if (playerNode == node)
-                {
-                    Gizmos.color = Color.indianRed;
-                }
-                //Dibujamos el nodo
-                Gizmos.DrawWireCube(node.worldPosition, Vector3.one * (nodeDiameter - 0.1f));
             }
         }
     }
