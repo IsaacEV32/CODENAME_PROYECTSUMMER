@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class GridBoard : MonoBehaviour
 {
-    [SerializeField] Transform player;
     //Layer para los nodos en los que no se puede mover el jugador
     [SerializeField] LayerMask unwalkableNode;
     //Es el tamano de la grid en espacio mundo

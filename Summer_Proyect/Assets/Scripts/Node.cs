@@ -1,21 +1,29 @@
 using UnityEngine;
-//Estados que tendra el nodo Cerrado, abierto y bloqueado.
+//Estados que tendra el nodo Abierto y bloqueado.
 public enum NodeState
 {
     Open, Blocked
 }
+//Esta clase debe de implementar la interfaz IHeapItem para usar la estructura heap
 public class Node : IHeapItem<Node>
 {
+    //Es el estado del nodo a la hora de construir la grid
     public NodeState currentNodeState;
+    //La posicion en el mundo del nodo
     public Vector3 worldPosition;
-
+    
+    //Tamano de la grid en los ejes X e Y
     int gridX, gridY;
 
+    //Se definene los costes g y h del nodo
     int gCost, hCost;
 
+    //Se obtiene el nodo padre de este nodo
     Node parentNode;
 
-    int HeapIndex;
+    //Se usa como indice de la estructura heap
+    int heapIndex;
+    //Devuelve el coste f de este nodo
     int fCost
     {
         get
@@ -31,17 +39,19 @@ public class Node : IHeapItem<Node>
         gridX = _gridSizeX;
         gridY = _gridSizeY;
     }
-    public int heapIndex
+    //Definimos la propiedad del indice del heap 
+    public int HeapIndex
     {
         get
         {
-            return HeapIndex;
+            return heapIndex;
         }
         set
         {
-            HeapIndex = value;
+            heapIndex = value;
         }
     }
+    //Se usa para comparar los costes f de los nodos. Si son iguales, se comparan los costes h.
     public int CompareTo(Node nodeToCompare)
     {
         int compare = fCost.CompareTo(nodeToCompare.fCost);
