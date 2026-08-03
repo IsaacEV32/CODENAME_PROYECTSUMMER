@@ -66,14 +66,6 @@ public class Node : IHeapItem<Node>
     {
         return gCost;
     }
-    public int GethCost()
-    {
-        return hCost;
-    }
-    public int GetfCost()
-    {
-        return fCost;
-    }
     public int GetGridX()
     {
         return gridX;

@@ -9,8 +9,6 @@ public class PathfindingPlayer : MonoBehaviour
     GridBoard grid;
     //Se anaden los puntos de inicio y final
     [SerializeField] Transform seeker, target;
-    //Referencia al jugador
-    [SerializeField] PlayerControler playerControler;
     //Corrutina para el loop de encontrar camino
     Coroutine loopPath;
 
@@ -29,17 +27,15 @@ public class PathfindingPlayer : MonoBehaviour
     {
         target = _target;
         //Si se ha iniciado la corrutina
-        if (loopPath != null && playerControler.GetEndPoint().position != playerControler.GetLastPointSaved())
+        if (loopPath != null)
         {
             //Se detiene la corrutina
             StopCoroutine(loopPath);
             loopPath = null;
         }
-        if (playerControler.GetEndPoint().position != playerControler.GetLastPointSaved())
-        {
-            //Se inicia la corrutina
-            loopPath = StartCoroutine(LoopFindingPath());
-        }
+        //Se inicia la corrutina
+        loopPath = StartCoroutine(LoopFindingPath());
+
     }
     IEnumerator LoopFindingPath()
     {
@@ -59,70 +55,58 @@ public class PathfindingPlayer : MonoBehaviour
         Node startNode = grid.NodeFromWorldPoint(startPosition);
         //Se crean los nodos final obteniendo el nodo mas cercano de su posicion
         Node endNode = grid.NodeFromWorldPoint(endPosition);
-
-        if (endNode.currentNodeState != NodeState.Blocked)
+        //Se limpian los sets abiertos y cerrados
+        openSet.Clear();
+        closeSet.Clear();
+        //Se anade el nodo de inicio como abierto
+        openSet.Add(startNode);
+        //Se busca dentro de los nodos abiertos
+        for (int i = 0; openSet.Count > 0; i++)
         {
-            //Se limpian los sets abiertos y cerrados
-            openSet.Clear();
-            closeSet.Clear();
-            //Se anade el nodo de inicio como abierto
-            openSet.Add(startNode);
-            //Se busca dentro de los nodos abiertos
-            for (int i = 0; openSet.Count > 0; i++)
+            //Se quita el primer nodo en el set de nodos abiertos y obtenemos el nodo actual
+            Node currentNode = openSet.RemoveFirstItem();
+            //Se anade el nodo actual en el set de nodos cerrados
+            closeSet.Add(currentNode);
+            //Si el nodo actual es el final
+            if (currentNode == endNode)
             {
-                //Se quita el primer nodo en el set de nodos abiertos y obtenemos el nodo actual
-                Node currentNode = openSet.RemoveFirstItem();
-                //Se anade el nodo actual en el set de nodos cerrados
-                closeSet.Add(currentNode);
-                //Si el nodo actual es el final
-                if (currentNode == endNode)
+                //Paramos de contar cuanto tiempo a ha tardado
+                sw.Stop();
+                print("Path found: " + sw.ElapsedMilliseconds + "ms");
+                //Recreamos el camino con el nodo de inicio y el nodo final
+                RetracePath(startNode, endNode);
+                break;
+            }
+            //Por cada nodo vecino del nodo actual
+            foreach (Node neighbour in grid.GetNeighbours(currentNode))
+            {
+                //Si el vecino esta bloqueado o se encuentra dentro del set de nodos cerrados, se ignora a ese vecino
+                if (neighbour.currentNodeState == NodeState.Blocked || closeSet.Contains(neighbour))
                 {
-                    //Paramos de contar cuanto tiempo a ha tardado
-                    sw.Stop();
-                    print("Path found: " + sw.ElapsedMilliseconds + "ms");
-                    //Recreamos el camino con el nodo de inicio y el nodo final
-                    RetracePath(startNode, endNode);
-                    //Activamos el permiso para que el jugador pueda moverse
-                    playerControler.PlayerCanMoveToTheNode(true);
-                    break;
+                    continue;
                 }
-                //Por cada nodo vecino del nodo actual
-                foreach (Node neighbour in grid.GetNeighbours(currentNode))
+                //Obtenemos el nuevo coste en base al coste g del vecino y se le suma la distancia entre el nodo actual y el vecino
+                int newMovementCostToNeighbour = currentNode.GetgCost() + GetDistance(currentNode, neighbour);
+                //Si este nuevo coste es menor que el coste g del vecino o si el set de nodos abiertos no contiene el nodo vecino
+                if (newMovementCostToNeighbour < neighbour.GetgCost() || !openSet.Contains(neighbour))
                 {
-                    //Si el vecino esta bloqueado o se encuentra dentro del set de nodos cerrados, se ignora a ese vecino
-                    if (neighbour.currentNodeState == NodeState.Blocked || closeSet.Contains(neighbour))
+                    //Se setean los costes g y h del vecino
+                    neighbour.SetgCost(newMovementCostToNeighbour);
+                    neighbour.SethCost(GetDistance(neighbour, endNode));
+                    //Se añade como padre de este vecino el nodo actual
+                    neighbour.SetParentNode(currentNode);
+                    //SI el set de nodos no contiene al vecino, se anade 
+                    if (!openSet.Contains(neighbour))
                     {
-                        continue;
+                        openSet.Add(neighbour);
                     }
-                    //Obtenemos el nuevo coste en base al coste g del vecino y se le suma la distancia entre el nodo actual y el vecino
-                    int newMovementCostToNeighbour = currentNode.GetgCost() + GetDistance(currentNode, neighbour);
-                    //Si este nuevo coste es menor que el coste g del vecino o si el set de nodos abiertos no contiene el nodo vecino
-                    if (newMovementCostToNeighbour < neighbour.GetgCost() || !openSet.Contains(neighbour))
+                    //Si no se actualiza ese nodo en el nodo de sets vecinos
+                    else
                     {
-                        //Se setean los costes g y h del vecino
-                        neighbour.SetgCost(newMovementCostToNeighbour);
-                        neighbour.SethCost(GetDistance(neighbour, endNode));
-                        //Se añade como padre de este vecino el nodo actual
-                        neighbour.SetParentNode(currentNode);
-                        //SI el set de nodos no contiene al vecino, se anade 
-                        if (!openSet.Contains(neighbour))
-                        {
-                            openSet.Add(neighbour);
-                        }
-                        //Si no se actualiza ese nodo en el nodo de sets vecinos
-                        else
-                        {
-                            openSet.UpdateItem(neighbour);
-                        }
+                        openSet.UpdateItem(neighbour);
                     }
                 }
             }
-        }
-        //Si no se desactica el punto final camino y no se le permite mover al jugador
-        else
-        {
-            playerControler.GetEndPoint().gameObject.SetActive(false);
-            playerControler.PlayerCanMoveToTheNode(false);
         }
         //Se termina la busqueda del camino
         loopPath = null;
@@ -134,7 +118,7 @@ public class PathfindingPlayer : MonoBehaviour
         List<Node> path = new List<Node>();
         //Guardamos el ultimo nodo como el actual
         Node currentNode = endNode;
-        
+
         //Mientras el nodo actual no sea el nodo de inicio
         while (currentNode != startNode)
         {
@@ -145,7 +129,7 @@ public class PathfindingPlayer : MonoBehaviour
         }
         //Se anade el ultimo nodo al camino
         path.Add(currentNode);
-        
+
         //Se le da la vuelta
         path.Reverse();
 
